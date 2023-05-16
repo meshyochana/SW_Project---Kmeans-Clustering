@@ -89,11 +89,10 @@ int initPointsCentroidsIndex(int n, int k, int** pointsCentroidsIndex){
 
 int main(int argc, char *argv[])
 {
-    printf("%d", argc);
     // int k = 100; // for debuging mode
     if(argc == 1){ // no arguments have been passed to main
         printf("An Error Has Occurred");
-        return 1;
+        return 0;
     }
     int k = atoi(argv[1]); // number of clusters (centroids)
     int iter = 0;// maximum iteration
@@ -149,7 +148,7 @@ int main(int argc, char *argv[])
         printf("An Error Has Occurred");
         return 1;
     }
-    
+
     //-----------end init routine----------------
 
     //---------------print matrix[n][k]:--------------
@@ -172,6 +171,12 @@ int main(int argc, char *argv[])
     //---------------end print matrix----------------
 
     //---------------free memory---------------------
-
+    free(*points);
+    free(points);
+    free(*centroids);
+    free(centroids);
+    free(*prevCentroids);
+    free(prevCentroids);
+    free(pointsCentroidsIndex);
     return 0;
 }
