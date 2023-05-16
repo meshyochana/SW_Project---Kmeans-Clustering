@@ -1,17 +1,18 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-enum checkInputLine {
-    FIRST_LINE,    // 0
-    NOT_FIRST_LINE,  // 1
+enum boolean {
+    FALSE,    // 0
+    TRUE,  // 1
 };
+
 
 int main() {
     int maxNumberLen = 200;
     char str[200] = {0};
     int n = 0;
     int d = 0;
-    enum checkInputLine inputLine = FIRST_LINE;
+    enum boolean isFirstLine = TRUE;
     
     //--------for daynamic allocation--------
     size_t sizeOfPoints_nxd = 100;
@@ -25,11 +26,11 @@ int main() {
     int i = 0;
     
     str[i] = getchar();
-    do{
+        do{
         if(str[i] == ',' || str[i] == '\n'){
-            if(inputLine == FIRST_LINE && str[i] == '\n'){
+            if(isFirstLine == TRUE && str[i] == '\n'){
                 d = indexOfPoints_nxd + 1;
-                inputLine = NOT_FIRST_LINE;
+                isFirstLine = FALSE;
             }
             str[i] = '\0';
             points_nxd[indexOfPoints_nxd] = strtod(str, NULL);
@@ -42,7 +43,24 @@ int main() {
             sizeOfPoints_nxd *= 2;
             points_nxd = (double*)realloc(points_nxd, sizeof(double) *  sizeOfPoints_nxd);
         }
-    } while((str[i] = getchar()) && (str[i] != 'z'))
+    } while((str[i] = getchar()) && (str[i] != 'z'));
     // (str[i] != 'z') use to demonstrate end of file when debuging
-    printf("end");
+    n = indexOfPoints_nxd/d;
+    for(i=0;i<n;i++){
+        if(i==sizeOfpoints){
+            sizeOfpoints *= 2;
+            points = (double**)realloc(points, sizeof(double*) *  sizeOfpoints);
+        }
+        points[i] = points_nxd +i*d;
+    }
+    printf("input matrix:");
+    for(i=0;i<n;i++){
+        printf("\n");
+        for(int j=0;j<d;j++){
+            printf("%.4f", points[i][j]);
+            if(j<d-1)
+                printf(",");
+        }
+    }
+    return 0;
 }
