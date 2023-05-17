@@ -11,7 +11,6 @@ enum boolean {
 int readInput(int* n,int* d, double*** points);
 int initCentroids(int k, int d, double*** centroids, double** points);
 int initPointsCentroidsIndex(int n, int k, int** pointsCentroidsIndex);
-void kmeans();
 void assign();
 void update();
 char convergence();
@@ -28,10 +27,8 @@ int main(int argc, char *argv[])
         return 0;
     }
     int k = atoi(argv[1]); // number of clusters (centroids)
-    int iter = 0;// maximum iteration
-    if(argc == 2) // 1 argument have been passed to main
-        iter = 200;
-    else // at least 2 arguments have been passed to main
+    int iter = 200;// defult maximum iteration
+    if(argc > 2) // at least 2 arguments have been passed to main
         iter = atoi(argv[2]);// maximum iteration
     int n = 0;
     int d = 0;
@@ -102,19 +99,8 @@ int main(int argc, char *argv[])
     //     printf("%d,",pointsCentroidsIndex[i]);
     // }
     //---------------end print matrix----------------
-    c_size_arr = (int*)calloc(K, sizeof(int));
-    c_sum_arr = (double**)calloc(K, sizeof(double*));
 
-    /*...*/
-
-    /*example:*/
-    double p_arr[3][2] = {{1,0}, {3,0}, {5,0}};
-    double c_arr[2][2] = {{0,0},{1,1}};
-    d=2;
-    N=3;
-    K=2;
-
-    for(int i=0; i<iterations; i++)
+    for(int i=0; i<iter; i++)
     {
         assign(); /*a_i_dict := {cluster index : [point indices]}*/
         update(); /*delta_c := maximum distance between the prev. and cur. centroids*/ 
@@ -124,10 +110,6 @@ int main(int argc, char *argv[])
         }
             
     }
-
-    free(c_size_arr);
-    free(c_sum_arr);
-
     //---------------free memory---------------------
     free(*points);
     free(points);
@@ -219,11 +201,7 @@ int initPointsCentroidsIndex(int n, int k, int** pointsCentroidsIndex){
 
 /*---Global Variables---*/
 double epsilon = 0.001;
-int iterations = 200;
 double delta_c = 0;
-int K;
-long N;
-int d;
 double **p_arr; /*points array [N*d]*/
 double **c_arr; /*centroinds array [k*d]*/ 
 double **c_sum_arr; /*centroinds sum array [k*d]*/
@@ -231,20 +209,14 @@ int *c_size_arr; /*size of each cluster array [k*1]*/
 
 // meshi part:
 
-void assign()
+/*Assign every point to the closest cluster*/
+void assign(int n, centroides, points)
 {
-    /*Assign every point to the closest cluster*/
-
-    int i;
     int min_index;
-    
-    memset(c_sum_arr, 0, sizeof(c_sum_arr));
-    memset(c_size_arr, 0, sizeof(c_size_arr));
-   
-    for(i = 0; i < N; i++)
+    for(int i = 0; i < n; i++)
     {
-        min_index = argmin_distance(c_arr,p_arr[i]);
-        vec_sum(c_sum_arr[min_index], p_arr[i]);
+        min_index = argmin_distance(*centroides,p_apointsrr[i]);
+        vec_sum(c_sum_arr[min_index], points[i]);
         c_size_arr[min_index] += 1;
     }
 }
