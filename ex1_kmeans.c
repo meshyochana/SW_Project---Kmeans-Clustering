@@ -63,7 +63,7 @@ void kmeans()
 }
 
 
-void assign()
+void assign(int n, points, centrieds)
 {
     /*Assign every point to the closest cluster*/
 

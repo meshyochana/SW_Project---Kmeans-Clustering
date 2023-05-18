@@ -2,41 +2,65 @@
 #include <stdlib.h>
 #include <math.h>
 
+/*---Global Variables---*/
+int n = 0;
+int k = 0;
+int d = 0;
+int iter = 200; /* defult maximum iteration */
+
 enum boolean {
     FALSE,    // 0
     TRUE,  // 1
 };
 
-//---------------func prototype:--------------------
-int readInput(int* n,int* d, double*** points);
-int initCentroids(int k, int d, double*** centroids, double** points);
-int initPointsCentroidsIndex(int n, int k, int** pointsCentroidsIndex);
-void assign();
-void update();
-char convergence();
-double distance_pp(double*, double*);
-int argmin_distance(double**, double*);
-void vec_sum(double*, double*);
-double* vec_div(double*, int);
+/*---------------func prototype:--------------------*/
+int isNaturalNumber(char* str);
+int readInput(int *n,int *d, double ***points);
+int initCentroids(int k, int d, double ***centroids, double **points);
+int initPointsCentroidsIndex(int n, int k, int **pointsCentroidsIndex);
+void assign(double **points, double **centroides, int **pointsCentroidsIndex);
+int update_centroids(double **points, double ***centroides, double ***prevCentroids, int *pointsCentroidsIndex);
+double convergence(double **centroides, double **prevCentroids);
+double distance_pp(double *p1, double *p2);
+int argmin_distance(double *point, double **centroids);
+void vec_sum(double *v1, double *v2);
+void vec_sum(double *v1, double *v2);
+void print_matrix_2d(int n, int m, double **matrix_2d);
+
 
 int main(int argc, char *argv[])
 {
-    // int k = 100; // for debuging mode
-    if(argc == 1){ // no arguments have been passed to main
+    double epsilon = 0.001;
+    /*--- read input from argv ---*/
+    /* check if no arguments have been passed to main*/
+    if(argc == 1){
         printf("An Error Has Occurred");
-        return 0;
+        return 1;
     }
-    int k = atoi(argv[1]); // number of clusters (centroids)
-    int iter = 200;// defult maximum iteration
-    if(argc > 2) // at least 2 arguments have been passed to main
-        iter = atoi(argv[2]);// maximum iteration
-    int n = 0;
-    int d = 0;
+    /*check if argv[1] not natural number*/
+    if(isNaturalNumber(argv[1]) == FALSE){
+        printf("Invalid number of clusters!");
+        return 1;
+    }
+    k = atoi(argv[1]); /* number of clusters (centroids) */
+    if(argc > 2){ /* at least 2 arguments have been passed to main */
+        /*check if argv[2] is not natural number*/
+        if(isNaturalNumber(argv[2]) == FALSE){
+            printf("Invalid maximum iteration!");
+        return 1;
+        }
+        iter = atoi(argv[2]);/* maximum iteration */
+    }
+
+    /*--- define pointers for multidimensional arrays ----*/
     double** points = NULL;
     double** centroids = NULL;
     double** prevCentroids = NULL;
     int* pointsCentroidsIndex = NULL;
-    //---------------input check:----------------
+    int *c_size_arr = NULL;
+    int *c_sum_arr = NULL;
+
+    /*--- input check: ---*/
     if(k <= 1){
         printf("Invalid number of clusters!");
         return 1;
@@ -45,7 +69,8 @@ int main(int argc, char *argv[])
         printf("Invalid maximum iteration!");
         return 1;
     }
-    //---------------init routine:---------------
+
+    /*--- init routine: ---*/
     int initStatus = 0;
     initStatus = readInput(&n, &d, &points);
 
@@ -79,38 +104,27 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    //-----------end init routine----------------
-
-    //---------------print matrix[n][k]:--------------
-    // printf("centroids matrix:");
-    // for(int i=0;i<n;i++){
-    //     printf("\n");
-    //     for(int j=0;j<k;j++){
-    //         printf("%.4f", centroids[i][j]);
-    //         if(j<d-1)
-    //             printf(",");
-    //     }
-    // }
-    //---------------end print points:----------------
-
-    //---------------print matrix[n]:--------------
-    // printf("centroids indexes:\n");
-    // for(int i=0;i<n;i++){
-    //     printf("%d,",pointsCentroidsIndex[i]);
-    // }
-    //---------------end print matrix----------------
-
-    for(int i=0; i<iter; i++)
+    /*--- kmeans algo: ---*/
+    for(int i = 0; i < iter; i++)
     {
-        assign(); /*a_i_dict := {cluster index : [point indices]}*/
-        update(); /*delta_c := maximum distance between the prev. and cur. centroids*/ 
-        if (convergence())
+        assign(points, centroids, &pointsCentroidsIndex);
+
+        initStatus = update_centroids(points, &centroids, &prevCentroids, pointsCentroidsIndex);
+        
+        if(initStatus){
+            printf("An Error Has Occurred");
+            return 1;
+        }
+        
+        if (convergence(centroids, prevCentroids) < epsilon)
         {
            break; 
         }
-            
     }
-    //---------------free memory---------------------
+
+    print_matrix_2d(k, d, centroids);
+
+    /*--- deallocate memory ---*/
     free(*points);
     free(points);
     free(*centroids);
@@ -119,6 +133,19 @@ int main(int argc, char *argv[])
     free(prevCentroids);
     free(pointsCentroidsIndex);
     return 0;
+}
+
+int isNaturalNumber(char *str) {
+    if (str == NULL || *str == '\0') {
+        return FALSE; // empty string
+    }
+    while (*str) {
+        if ((*str) < '0' || '9' < (*str) ) {
+            return FALSE; // Not a natural number
+        }
+        str++;
+    }
+    return TRUE; // Valid natural number
 }
 
 int readInput(int* n,int* d, double*** points)
@@ -199,61 +226,62 @@ int initPointsCentroidsIndex(int n, int k, int** pointsCentroidsIndex){
     return 0; // successful running
 }
 
-/*---Global Variables---*/
-double epsilon = 0.001;
-double delta_c = 0;
-double **p_arr; /*points array [N*d]*/
-double **c_arr; /*centroinds array [k*d]*/ 
-double **c_sum_arr; /*centroinds sum array [k*d]*/
-int *c_size_arr; /*size of each cluster array [k*1]*/
-
-// meshi part:
-
 /*Assign every point to the closest cluster*/
-void assign(int n, centroides, points)
+void assign(double **points, double **centroides, int **pointsCentroidsIndex)
 {
-    int min_index;
+    int min_index = 0;
+    for(int i = 0; i < n; i++){
+        min_index = argmin_distance(points[i], centroides);
+        (*pointsCentroidsIndex)[i] = min_index;
+    }
+}
+
+int update_centroids(double **points, double ***centroides, double ***prevCentroids, int *pointsCentroidsIndex)
+{
+    int min_index = 0;
+    int *c_size_arr = (int*) calloc(k, sizeof(int)); /* counts the number of points in every cluster*/
+    if(c_size_arr == NULL)
+        return 1;
+
+    /*--- swap operation: centroides & prevCentroids ---*/
+    double **temp = *prevCentroids;
+    *prevCentroids = *centroides;
+    *centroides = temp;
+
+    /*--- set centroides to zeros ---*/
+    for(int i = 0; i < k; i++)
+        for(int j = 0; j < d; j++)
+            (*centroides)[i][j] = 0.0;
+
+    /*--- sum up every cooordinate in every centroid ---*/
     for(int i = 0; i < n; i++)
     {
-        min_index = argmin_distance(*centroides,p_apointsrr[i]);
-        vec_sum(c_sum_arr[min_index], points[i]);
+        min_index = pointsCentroidsIndex[i];
+        vec_sum((*centroides)[min_index], points[i]);
         c_size_arr[min_index] += 1;
     }
-}
 
-
-void update()
-{
-    /*Update the centroids coordinates to be 
-    the center of mass of their associated points*/
-    
-    delta_c = 0;
-    int length;
-    int i;
-    double* new_c = calloc(d, sizeof(int));
-
-    for(i = 0; i < K; i++)
+    /*--- calculate the new C.G for every centroid ---*/
+    for(int i = 0; i < k; i++)
     {
-        length = c_size_arr[i];
-        if (length!=0)
+        for(int j = 0; j < d; j++)
         {
-            new_c = vec_div(c_sum_arr[i],length);
-            delta_c = fmax(distance_pp(new_c,c_arr[i]),delta_c);
-            c_arr[i] = new_c;   
+            (*centroides)[i][j] = (*centroides)[i][j] / c_size_arr[i];
         }
     }
-    free(new_c);
+    
+    free(c_size_arr);
+    return 0;
 }
 
 
-char convergence()
+double convergence(double **centroides, double **prevCentroids)
 {
+    double delta_c = 0;
     /*Check if the condition for convergence is met*/
-    if (delta_c < epsilon)
-    {
-        return 1;
-    }  
-    return 0;
+    for(int i = 0; i < k; i++)
+        delta_c = fmax(distance_pp(centroides[i],prevCentroids[i]),delta_c);
+    return delta_c;
 }
 
 
@@ -261,9 +289,8 @@ char convergence()
 double distance_pp(double *p1, double *p2)
 {
     /*Calculate the euclidean distance between two points in R^d*/
-    int i;
     double dist= 0.0;
-    for(i = 0; i < d; i++)
+    for(int i = 0; i < d; i++)
     {
         dist += pow((p1[i] - p2[i]) , 2);
     }
@@ -272,21 +299,21 @@ double distance_pp(double *p1, double *p2)
 }
 
 
-int argmin_distance(double **a, double *p)
+int argmin_distance(double *point, double **centroids)
 {
     /*Input: c_arr-list of centroids [k*d], p-point in R^d. 
     Maintaining the minimum index from p to the centroids*/
-    int i;
+    int i = 0;
     int min_index = 0;
-    double d_min = distance_pp(a[0],p);
-    double d_cur;
-    for(i = 0; i < K; i++)
+    double dist_min = distance_pp(centroids[0], point);
+    double dist_cur = 0;
+    for(i = 0; i < k; i++)
     {
-        d_cur = distance_pp(a[i],p);
-        if (d_cur<d_min)
+        dist_cur = distance_pp(centroids[i], point);
+        if (dist_cur < dist_min)
         {
             min_index = i;
-            d_min = d_cur;
+            dist_min = dist_cur;
         }
     }
     return min_index;
@@ -296,25 +323,20 @@ int argmin_distance(double **a, double *p)
 void vec_sum(double *v1, double *v2)
 {
     /*Sum v2 into v1, each component seperately*/
-
-    int i;
-    for(i = 0; i < d; i++)
+    for(int i = 0; i < d; i++)
     {
         v1[i] += v2[i];
     }
 }
 
-
-double *vec_div(double *v1, int l)
+void print_matrix_2d(int n, int m, double **matrix_2d)
 {
-    /*Divide v1 by l, each component seperately*/
-
-    int i;
-    for (i = 0; i < d; i++)
-    {
-        v1[i] = (double)(v1[i] / l);
+    for(int i=0;i<n;i++){
+        for(int j=0;j<m;j++){
+            printf("%.4f", matrix_2d[i][j]);
+            if(j<m-1)
+                printf(",");
+        }
+        printf("\n");
     }
-    return v1;
 }
-
-
