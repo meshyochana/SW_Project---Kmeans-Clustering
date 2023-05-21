@@ -9,8 +9,15 @@ int d = 0;
 int iter = 200; /* defult maximum iteration */
 
 enum boolean {
-    FALSE,    // 0
-    TRUE,  // 1
+    FALSE,    /* 0*/
+    TRUE  /* 1*/
+};
+
+enum errmsg {
+    NO_ERROR,       /* 0*/
+    GEN_ERR,        /* 1*/
+    INVAL_CLUST,    /* 2*/
+    INVAL_ITER      /* 3*/
 };
 
 /*---------------func prototype:--------------------*/
@@ -24,13 +31,21 @@ double convergence(double **centroides, double **prevCentroids);
 double distance_pp(double *p1, double *p2);
 int argmin_distance(double *point, double **centroids);
 void vec_sum(double *v1, double *v2);
-void vec_sum(double *v1, double *v2);
 void print_matrix_2d(int n, int m, double **matrix_2d);
+double max(double num1, double num2);
 
 
 int main(int argc, char *argv[])
 {
     double epsilon = 0.001;
+    int i = 0;
+    enum errmsg err = NO_ERROR;
+    /*--- define pointers for multidimensional arrays ----*/
+    double **points = NULL;
+    double **centroids = NULL;
+    double **prevCentroids = NULL;
+    int *pointsCentroidsIndex = NULL;
+    
     /*--- read input from argv ---*/
     /* check if no arguments have been passed to main*/
     if(argc == 1){
@@ -47,18 +62,10 @@ int main(int argc, char *argv[])
         /*check if argv[2] is not natural number*/
         if(isNaturalNumber(argv[2]) == FALSE){
             printf("Invalid maximum iteration!");
-        return 1;
+            return 1;
         }
         iter = atoi(argv[2]);/* maximum iteration */
     }
-
-    /*--- define pointers for multidimensional arrays ----*/
-    double** points = NULL;
-    double** centroids = NULL;
-    double** prevCentroids = NULL;
-    int* pointsCentroidsIndex = NULL;
-    int *c_size_arr = NULL;
-    int *c_sum_arr = NULL;
 
     /*--- input check: ---*/
     if(k <= 1){
@@ -71,98 +78,88 @@ int main(int argc, char *argv[])
     }
 
     /*--- init routine: ---*/
-    int initStatus = 0;
-    initStatus = readInput(&n, &d, &points);
+    err = readInput(&n, &d, &points);
 
-    if(n <= k){
-        printf("Invalid number of clusters!");
-        return 1;
-    }
-
-    if(initStatus){
-        printf("An Error Has Occurred");
-        return 1;
-    }
-    initStatus = initCentroids(k, d, &centroids, points);
-
-    if(initStatus){
-        printf("An Error Has Occurred");
-        return 1;
-    }
-
-    initStatus = initCentroids(k, d, &prevCentroids, points);
-
-    if(initStatus){
-        printf("An Error Has Occurred");
-        return 1;
-    }
-
-    initStatus = initPointsCentroidsIndex(n, k, &pointsCentroidsIndex);
+    if(err == NO_ERROR && n <= k)
+        err = INVAL_CLUST;
     
-    if(initStatus){
-        printf("An Error Has Occurred");
-        return 1;
-    }
+    if(err == NO_ERROR)
+        err = initCentroids(k, d, &centroids, points);
 
+    if(err == NO_ERROR)
+        err = initCentroids(k, d, &prevCentroids, points);
+
+    if(err == NO_ERROR)
+        err = initPointsCentroidsIndex(n, k, &pointsCentroidsIndex);
+    
+    if(err == NO_ERROR){
     /*--- kmeans algo: ---*/
-    for(int i = 0; i < iter; i++)
-    {
-        assign(points, centroids, &pointsCentroidsIndex);
-
-        initStatus = update_centroids(points, &centroids, &prevCentroids, pointsCentroidsIndex);
-        
-        if(initStatus){
-            printf("An Error Has Occurred");
-            return 1;
-        }
-        
-        if (convergence(centroids, prevCentroids) < epsilon)
+        for(i = 0; i < iter; i++)
         {
-           break; 
+            assign(points, centroids, &pointsCentroidsIndex);
+
+            err = update_centroids(points, &centroids, &prevCentroids, pointsCentroidsIndex);
+        
+            if(err != NO_ERROR || convergence(centroids, prevCentroids) < epsilon){
+                break;
+            }
         }
     }
-
-    print_matrix_2d(k, d, centroids);
+    if(err == NO_ERROR){
+        print_matrix_2d(k, d, centroids);
+        free(*points);
+        free(*centroids);
+        free(*prevCentroids);
+    }
+    if(err == GEN_ERR)
+        printf("An Error Has Occurred\n");
+    if(err == INVAL_CLUST){
+        printf("Invalid number of clusters!");
+        free(*points);
+    }
 
     /*--- deallocate memory ---*/
-    free(*points);
+    
     free(points);
-    free(*centroids);
     free(centroids);
-    free(*prevCentroids);
     free(prevCentroids);
     free(pointsCentroidsIndex);
-    return 0;
+    if(err == NO_ERROR)
+        return 0;
+    return 1;
 }
 
 int isNaturalNumber(char *str) {
     if (str == NULL || *str == '\0') {
-        return FALSE; // empty string
+        return FALSE; /* empty string*/
     }
     while (*str) {
         if ((*str) < '0' || '9' < (*str) ) {
-            return FALSE; // Not a natural number
+            return FALSE; /* Not a natural number*/
         }
         str++;
     }
-    return TRUE; // Valid natural number
+    return TRUE; /* Valid natural number*/
 }
 
 int readInput(int* n,int* d, double*** points)
 {
+    int indexOfPoints_nxd = 0;
+    int i = 0;
     char str[200] = {0};
     enum boolean isFirstLine = TRUE;
-    //--------for daynamic allocation--------
+    /*--------for daynamic allocation--------*/
     size_t sizeOfPoints_nxd = 100;
     size_t sizeOfpoints = 100;  
     double* points_nxd = (double*) calloc(sizeOfPoints_nxd, sizeof(double));
     *points = (double**) calloc(sizeOfpoints, sizeof(double*));
-    //--------------------------------------- 
-    if(points_nxd == NULL || (*points) == NULL)
+    /*--------------------------------------- */
+    if(points_nxd == NULL || (*points) == NULL){
+        free(points_nxd);
+        free(*points);
         return 1;
-    int indexOfPoints_nxd = 0;
-    int i = 0;
-    // get data from stdin and write it daynamicly to points_nxd
+    }
+    /* get data from stdin and write it daynamicly to points_nxd*/
     str[i] = getchar();
         do{
         if(str[i] == ',' || str[i] == '\n'){
@@ -171,66 +168,73 @@ int readInput(int* n,int* d, double*** points)
                 isFirstLine = FALSE;
             }
             str[i] = '\0';
-            points_nxd[indexOfPoints_nxd] = strtod(str, NULL); // str to double
+            points_nxd[indexOfPoints_nxd] = strtod(str, NULL); /* str to double*/
             indexOfPoints_nxd++;
             i = 0;
         }
         else
             i++;
-        if(indexOfPoints_nxd == sizeOfPoints_nxd){
+        if(indexOfPoints_nxd == (int) sizeOfPoints_nxd){
             sizeOfPoints_nxd *= 2;
             points_nxd = (double*)realloc(points_nxd, sizeof(double) *  sizeOfPoints_nxd);
-            if(points_nxd == NULL)
-                return 1;
+            if(points_nxd == NULL){
+                free(*points);
+                return 1; /* alloc problem running*/
+            }
         }
-    // end while condition: (str[i] != 'z') use to demonstrate end of file when debuging
-    } while((str[i] = getchar()) && (str[i] != 'z'));
+    str[i] = getchar();
+    /* end while condition: (str[i] != 'z') use to demonstrate end of file when debuging*/
+    } while(str[i] != EOF && (str[i] != 'z'));
 
-    // arrange the data in points as an 2 dim array, write daynamicly
+    /* arrange the data in points as an 2 dim array, write daynamicly*/
     *n = indexOfPoints_nxd/(*d);
     *points[0] = points_nxd;
-    int indexOfpoints = 1;
     for(i=0;i<(*n);i++){
-        if(i==sizeOfpoints){
+        if(i==(int) sizeOfpoints){
             sizeOfpoints *= 2;
             *points = (double**)realloc(*points, sizeof(double*) *  sizeOfpoints);
-            if((*points) == NULL)
+            if((*points) == NULL){
+                free(points_nxd);
                 return 1;
+            }
         }
         (*points)[i] = points_nxd +i*(*d);
     }
-    return 0; // successful running
+    return 0; /* successful running*/
 }
 
 int initCentroids(int k, int d, double*** centroids, double** points){
+    int i = 0;
     double* centroides_kxd = (double*) calloc(k*d, sizeof(double));
     *centroids = (double**) calloc(k, sizeof(double*));
     if(centroides_kxd == NULL || (*centroids) == NULL)
         return 1;
-    for(int i=0;i<k*d;i++){
+    for(i=0;i<k*d;i++){
         centroides_kxd[i] = (*points)[i];
     }
-    for(int i=0;i<k;i++){
+    for(i=0;i<k;i++){
         (*centroids)[i] = centroides_kxd +i*d;
     }
-    return 0; // successful running
+    return 0; /* successful running*/
 }
 
 int initPointsCentroidsIndex(int n, int k, int** pointsCentroidsIndex){
+    int i = 0;
     *pointsCentroidsIndex = (int*) calloc(n, sizeof(int));
     if((*pointsCentroidsIndex) == NULL)
         return 1;
-    for(int i = 0;i < k; i++){
+    for(i = 0; i < k; i++){
         (*pointsCentroidsIndex)[i] = i;
     }
-    return 0; // successful running
+    return 0; /* successful running*/
 }
 
 /*Assign every point to the closest cluster*/
 void assign(double **points, double **centroides, int **pointsCentroidsIndex)
 {
+    int i = 0;
     int min_index = 0;
-    for(int i = 0; i < n; i++){
+    for(i = 0; i < n; i++){
         min_index = argmin_distance(points[i], centroides);
         (*pointsCentroidsIndex)[i] = min_index;
     }
@@ -238,23 +242,26 @@ void assign(double **points, double **centroides, int **pointsCentroidsIndex)
 
 int update_centroids(double **points, double ***centroides, double ***prevCentroids, int *pointsCentroidsIndex)
 {
+    int i = 0;
+    int j = 0;
     int min_index = 0;
+    double **temp = NULL;
     int *c_size_arr = (int*) calloc(k, sizeof(int)); /* counts the number of points in every cluster*/
     if(c_size_arr == NULL)
         return 1;
 
     /*--- swap operation: centroides & prevCentroids ---*/
-    double **temp = *prevCentroids;
+    temp = *prevCentroids;
     *prevCentroids = *centroides;
     *centroides = temp;
 
     /*--- set centroides to zeros ---*/
-    for(int i = 0; i < k; i++)
-        for(int j = 0; j < d; j++)
+    for(i = 0; i < k; i++)
+        for(j = 0; j < d; j++)
             (*centroides)[i][j] = 0.0;
 
     /*--- sum up every cooordinate in every centroid ---*/
-    for(int i = 0; i < n; i++)
+    for(i = 0; i < n; i++)
     {
         min_index = pointsCentroidsIndex[i];
         vec_sum((*centroides)[min_index], points[i]);
@@ -262,9 +269,9 @@ int update_centroids(double **points, double ***centroides, double ***prevCentro
     }
 
     /*--- calculate the new C.G for every centroid ---*/
-    for(int i = 0; i < k; i++)
+    for(i = 0; i < k; i++)
     {
-        for(int j = 0; j < d; j++)
+        for(j = 0; j < d; j++)
         {
             (*centroides)[i][j] = (*centroides)[i][j] / c_size_arr[i];
         }
@@ -278,9 +285,10 @@ int update_centroids(double **points, double ***centroides, double ***prevCentro
 double convergence(double **centroides, double **prevCentroids)
 {
     double delta_c = 0;
+    int i = 0;
     /*Check if the condition for convergence is met*/
-    for(int i = 0; i < k; i++)
-        delta_c = fmax(distance_pp(centroides[i],prevCentroids[i]),delta_c);
+    for(i = 0; i < k; i++)
+        delta_c = max(distance_pp(centroides[i],prevCentroids[i]),delta_c);
     return delta_c;
 }
 
@@ -289,8 +297,9 @@ double convergence(double **centroides, double **prevCentroids)
 double distance_pp(double *p1, double *p2)
 {
     /*Calculate the euclidean distance between two points in R^d*/
+    int i = 0;
     double dist= 0.0;
-    for(int i = 0; i < d; i++)
+    for(i = 0; i < d; i++)
     {
         dist += pow((p1[i] - p2[i]) , 2);
     }
@@ -322,8 +331,9 @@ int argmin_distance(double *point, double **centroids)
 
 void vec_sum(double *v1, double *v2)
 {
+    int i = 0;
     /*Sum v2 into v1, each component seperately*/
-    for(int i = 0; i < d; i++)
+    for(i = 0; i < d; i++)
     {
         v1[i] += v2[i];
     }
@@ -331,12 +341,20 @@ void vec_sum(double *v1, double *v2)
 
 void print_matrix_2d(int n, int m, double **matrix_2d)
 {
-    for(int i=0;i<n;i++){
-        for(int j=0;j<m;j++){
+    int i = 0;
+    int j = 0;
+    for( i=0;i<n;i++){
+        for(j=0;j<m;j++){
             printf("%.4f", matrix_2d[i][j]);
             if(j<m-1)
                 printf(",");
         }
         printf("\n");
     }
+}
+
+double max(double num1, double num2){
+    if(num1 < num2)
+        return num2;
+    return num1;
 }
